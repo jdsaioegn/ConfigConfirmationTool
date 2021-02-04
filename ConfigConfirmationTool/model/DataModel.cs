@@ -24,6 +24,15 @@ namespace ConfigConfirmationTool.model
         public List<XmlInfo> XmlInfos { get; set; }
 
         /// <summary>
+        /// コンストラクタ
+        /// </summary>
+        public DataModel()
+        {
+            FileInfos = new List<FileInfo>();
+            XmlInfos = new List<XmlInfo>();
+        }
+
+        /// <summary>
         /// 
         /// </summary>
         public class FileInfo
