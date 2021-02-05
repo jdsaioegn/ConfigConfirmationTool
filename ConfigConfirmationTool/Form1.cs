@@ -17,9 +17,13 @@ namespace ConfigConfirmationTool
     {
         private List<DataModel> data = new List<DataModel>();
 
+        private string log;
+
         public Form1()
         {
             InitializeComponent();
+            // 
+            log = GetAppSetting("LogFilePath");
         }
 
         /// <summary>
@@ -32,6 +36,22 @@ namespace ConfigConfirmationTool
         {
             // ①チェック対象ファイル読み込み
             GetConfirmationList();
+            // 
+            foreach (DataModel item in data)
+            {
+                // 
+                foreach (DataModel.FileInfo fileinfo in item.FileInfos)
+                {
+                    // 
+                    foreach (DataModel.XmlInfo xmlinfo in item.XmlInfos)
+                    {
+                        // トレースモードがONの場合は検索対象をログに出力
+                        if (GetAppSetting("TraceMode") == "ON") File.AppendAllText(log, "■検索対象ファイル：" + fileinfo.FilePath + "□検索条件：" + xmlinfo.SearchXmlNode + Environment.NewLine);
+                        // 
+
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -83,13 +103,21 @@ namespace ConfigConfirmationTool
                         // 該当する変更IDが存在しない場合はメッセージを出力し処理を継続
                         else
                         {
-                            MessageBox.Show("Warning：検索ファイルと紐づかない検索情報が存在します。");
+                            // メッセージ出力
+                            MessageBox.Show("Warning：検索ファイルと紐づかない検索情報が存在します。(詳細はログに記載)");
+                            // ログファイルに変更ID不備セクション情報を出力
+                            File.AppendAllText(log, line + "に該当する変更IDが存在しません。" + Environment.NewLine);
                         }
                     }
                     // 上記以外のセクションが設定されていた場合はメッセージを出力しツールを終了
                     else
                     {
-                        MessageBox.Show("Error：異常なセクションが登録されています。");
+                        // メッセージ出力
+                        MessageBox.Show("Error：異常なセクションが登録されています。(詳細はログに記載)");
+                        // ログファイルに異常検知セクション情報を出力
+                        File.AppendAllText(log, "異常検知セクション：" + line + Environment.NewLine);
+                        // アプリを強制終了
+                        Environment.Exit(0);
                     }
                 }
                 // データの解析
@@ -113,17 +141,97 @@ namespace ConfigConfirmationTool
                         // 登録対象となる変更IDが1つ存在する場合のみ登録する
                         if (data.Where(p => p.ChangeID == str).Count() == 1)
                         {
+                            // 先頭タブを削除
+                            string tmp = line.Trim('\t');
                             // XML情報登録
                             data.Where(p => p.ChangeID == str).Single().XmlInfos.Add(new DataModel.XmlInfo()
                             {
-                                // TODO:汎用的
-                                Operation = line
+                                // 検索判定（[追加][変更](edi) または [削除](del) か判断）
+                                Operation = tmp.Split('|').Last().Contains("del=") ? "del" : "edi",
+                                // 
+                                SearchXmlNode = GetSearchXmlNode(tmp)
                             });
                         }
 
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="line"></param>
+        /// <returns></returns>
+        private string GetSearchXmlNode(string line)
+        {
+            // 戻り値用
+            string str = string.Empty;
+            // 
+            string value = line.Split('=')?.ElementAt(2);
+            // 階層情報設定
+            string tmp = line.Split('=').ElementAt(0).Replace("p:", "");
+            // 
+            string[] attr = GetValue(line.Split('=').ElementAt(1), value);
+            // 
+            tmp.Split('/').ToList().ForEach(p => str += GetNode(p, attr));
+            // 戻り値
+            return str;
+        }
+
+        /// <summary>
+        /// 解析文字列()から要素検索値を設定
+        /// </summary>
+        /// <param name="cmd">解析文字列</param>
+        /// <returns>要素検索値設定済配列</returns>
+        private string[] GetValue(string cmd, string value)
+        {
+            // 戻り値用：2つ目の「=」以降の値を読み取り「,」区切りで設定されている値を適宜要素検索値に設定
+            string[] sp = cmd.Split('|').ElementAt(0).Split(',').Where(p => !string.IsNullOrEmpty(p)).ToArray();
+            // 要素検索値が設定されている場合は要素を設定
+            if (cmd.Split('|').ElementAt(1).EndsWith("attr"))
+            {
+                // 要素を追加
+                Array.Resize(ref sp, sp.Count() + 1);
+                // 要素検索値を設定
+                sp[sp.Count() - 1] = value;
+            }
+            // 戻り値
+            return sp;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="cmd"></param>
+        /// <returns></returns>
+        private string GetNode(string cmd, string[] value)
+        {
+            // 
+            string[] sp = cmd.Split('|');
+            // 戻り値用
+            string str = "/" + sp.First();
+            // 
+            if (sp.Count() != 1)
+            {
+                // 
+                str += "[";
+                // 
+                for (int i = 1; i < sp.Count(); i++)
+                {
+                    // 
+                    str += "@" + sp[i] + "='" + value[i - 1] + "'";
+                    // 
+                    if (i < sp.Count() - 1)
+                    {
+                        str += " and ";
+                    }
+                }
+                // 
+                str += "]";
+            }
+            // 戻り値
+            return str;
         }
     }
 }
