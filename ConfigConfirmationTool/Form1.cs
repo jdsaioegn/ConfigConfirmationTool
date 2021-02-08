@@ -10,6 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Xml;
 
 namespace ConfigConfirmationTool
 {
@@ -24,6 +25,7 @@ namespace ConfigConfirmationTool
             InitializeComponent();
             // 
             log = GetAppSetting("LogFilePath");
+            // 
         }
 
         /// <summary>
@@ -48,7 +50,11 @@ namespace ConfigConfirmationTool
                         // トレースモードがONの場合は検索対象をログに出力
                         if (GetAppSetting("TraceMode") == "ON") File.AppendAllText(log, "■検索対象ファイル：" + fileinfo.FilePath + "□検索条件：" + xmlinfo.SearchXmlNode + Environment.NewLine);
                         // 
-
+                        XmlDocument xml = new XmlDocument();
+                        // 
+                        xml.Load(fileinfo.FilePath);
+                        // 
+                        XmlNodeList node = xml.SelectNodes(xmlinfo.SearchXmlNode);
                     }
                 }
             }
